@@ -136,11 +136,8 @@ if not "STEAM_COMPAT_DATA_PATH" in os.environ:
     sys.exit(1)
 
 basedir = os.path.dirname(sys.argv[0])
-bindir = basedir + "/dist/bin/"
-libdir = basedir + "/dist/lib"
-lib64dir = basedir + "/dist/lib64"
 fontsdir = basedir + "/dist/share/fonts"
-wine_path = bindir + "/wine"
+wine_path = "wine"  # Expected to be in $PATH
 
 #extract if needed
 dist_lock = FileLock(basedir + "/dist.lock", timeout=-1)
@@ -163,24 +160,12 @@ env["DXVK_LOG_LEVEL"] = "none"
 env["WINEDEBUG"] = "-all"
 env.pop("WINEARCH", "")
 
-if ld_path_var in os.environ:
-    env[ld_path_var] = lib64dir + ":" + libdir + ":" + os.environ[ld_path_var]
-else:
-    env[ld_path_var] = lib64dir + ":" + libdir
-
-env["WINEDLLPATH"] = lib64dir + "/wine:" + libdir + "/wine"
-
-if "PATH" in os.environ:
-    env["PATH"] = bindir + ":" + os.environ["PATH"]
-else:
-    env["PATH"] = bindir
-
 with dist_lock:
     if not os.path.isdir(basedir + "/dist/share/default_pfx"):
         #make default prefix
         env["WINEPREFIX"] = basedir + "/dist/share/default_pfx"
         run_wine([wine_path, "wineboot"])
-        run_wine([bindir + "/wineserver", "-w"])
+        run_wine(["wineserver", "-w"])
 
 prefix = os.environ["STEAM_COMPAT_DATA_PATH"] + "/pfx/"
 env["WINEPREFIX"] = prefix
@@ -575,7 +560,7 @@ if sys.argv[1] == "run":
     run()
 elif sys.argv[1] == "waitforexitandrun":
     #wait for wineserver to shut down
-    run_wine([bindir + "/wineserver", "-w"])
+    run_wine(["wineserver", "-w"])
     #then run
     run()
 elif sys.argv[1] == "getcompatpath":
