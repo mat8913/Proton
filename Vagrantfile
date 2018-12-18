@@ -12,6 +12,12 @@ Vagrant.configure(2) do |config|
     v.memory = `grep 'MemTotal' /proc/meminfo | sed -e 's/MemTotal://' -e 's/ kB//'`.to_i / 1024 / 2
   end
 
+  config.vm.provider :libvirt do |v|
+    v.cpus = `nproc`.to_i
+    # meminfo shows KB and we need to convert to MB
+    v.memory = `grep 'MemTotal' /proc/meminfo | sed -e 's/MemTotal://' -e 's/ kB//'`.to_i / 1024 / 2
+  end
+
   #set up shared and rsynced folders
   config.vm.synced_folder "./vagrant_share/", "/vagrant/", id: "share", create: true
   config.vm.synced_folder ".", "/home/vagrant/proton", id: "proton", type: "rsync", rsync__exclude: ["/output/", "vagrant_share"], rsync__args: ["--verbose", "--archive", "-z", "--links", "--update"]
