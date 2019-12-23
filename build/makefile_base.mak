@@ -182,6 +182,12 @@ FAUDIO := $(SRCDIR)/FAudio
 FAUDIO_OBJ32 := ./obj-faudio32
 FAUDIO_OBJ64 := ./obj-faudio64
 
+GSTREAMER_VER := 1.6.4
+GSTREAMER := ./gstreamer-$(GSTREAMER_VER)
+GSTREAMER_TAR := gstreamer-$(GSTREAMER_VER).tar.xz
+GSTREAMER_OBJ32 := ./obj-gstreamer32
+GSTREAMER_OBJ64 := ./obj-gstreamer64
+
 LSTEAMCLIENT := $(SRCDIR)/lsteamclient
 LSTEAMCLIENT32 := ./syn-lsteamclient32/lsteamclient
 LSTEAMCLIENT64 := ./syn-lsteamclient64/lsteamclient
@@ -229,6 +235,7 @@ OBJ_DIRS := $(TOOLS_DIR32)        $(TOOLS_DIR64)        \
             $(OPENAL_OBJ32)       $(OPENAL_OBJ64)       \
             $(FFMPEG_OBJ32)       $(FFMPEG_OBJ64)       \
             $(FAUDIO_OBJ32)       $(FAUDIO_OBJ64)       \
+            $(GSTREAMER_OBJ32)    $(GSTREAMER_OBJ64)    \
             $(LSTEAMCLIENT_OBJ32) $(LSTEAMCLIENT_OBJ64) \
             $(WINE_OBJ32)         $(WINE_OBJ64)         \
             $(VRCLIENT_OBJ32)     $(VRCLIENT_OBJ64)     \
@@ -577,6 +584,46 @@ faudio64: $(FAUDIO_CONFIGURE_FILES64)
 	[ x"$(STRIP)" = x ] || $(STRIP) $(DST_DIR)/lib64/libFAudio.so
 
 ##
+## gstreamer
+##
+
+GSTREAMER_TARGETS = gstreamer gstreamer32 gstreamer64
+
+ALL_TARGETS += $(GSTREAMER_TARGETS)
+GOAL_TARGETS_LIBS += gstreamer
+
+.PHONY: gstreamer gstreamer32 gstreamer64
+
+gstreamer: gstreamer32 gstreamer64
+
+GSTREAMER_CONFIGURE_FILES32 := $(GSTREAMER_OBJ32)/Makefile
+GSTREAMER_CONFIGURE_FILES64 := $(GSTREAMER_OBJ64)/Makefile
+
+$(GSTREAMER):
+	if [ -e "$(SRCDIR)/../gstreamer/$(GSTREAMER_TAR)" ]; then \
+		tar -xf "$(SRCDIR)/../gstreamer/$(GSTREAMER_TAR)" "$@"; \
+	else \
+		mkdir -p $(SRCDIR)/contrib/; \
+		if [ ! -e "$(SRCDIR)/contrib/$(GSTREAMER_TAR)" ]; then \
+			echo ">>>> Downloading gstreamer. To avoid this in future, put it here: $(SRCDIR)/../gstreamer/$(GSTREAMER_TAR)"; \
+			wget -O "$(SRCDIR)/contrib/$(GSTREAMER_TAR)" "https://gstreamer.freedesktop.org/src/gstreamer/$(GSTREAMER_TAR)"; \
+		fi; \
+		tar -xf "$(SRCDIR)/contrib/$(GSTREAMER_TAR)" "$@"; \
+	fi
+
+$(GSTREAMER_CONFIGURE_FILES64): SHELL = $(CONTAINER_SHELL64)
+$(GSTREAMER_CONFIGURE_FILES64): $(MAKEFILE_DEP) | $(GSTREAMER) $(GSTREAMER_OBJ64)
+	cd $(dir $@) && \
+		../$(GSTREAMER)/configure --prefix=$(abspath $(TOOLS_DIR64))
+
+gstreamer64: SHELL = $(CONTAINER_SHELL64)
+gstreamer64: $(GSTREAMER_CONFIGURE_FILES64)
+	+$(MAKE) -C $(GSTREAMER_OBJ64)
+	+$(MAKE) -C $(GSTREAMER_OBJ64) install
+	mkdir -pv $(DST_DIR)/lib64
+	cp -L $(TOOLS_DIR64)/lib/libgstreamer-1.0.so* $(DST_DIR)/lib64
+
+##
 ## lsteamclient
 ##
 
@@ -703,11 +750,13 @@ $(WINE_CONFIGURE_FILES64): $(MAKEFILE_DEP) | $(WINE_OBJ64)
 		CFLAGS=-I$(abspath $(TOOLS_DIR64))"/include -g $(COMMON_FLAGS)" \
 		LDFLAGS=-L$(abspath $(TOOLS_DIR64))/lib \
 		PKG_CONFIG_PATH=$(abspath $(TOOLS_DIR64))/lib/pkgconfig \
+		PKG_CONFIG="/home/vagrant/pkgconfig.sh" \
 		CC=$(CC_QUOTED) \
 		CXX=$(CXX_QUOTED) \
 		../$(WINE)/configure \
 			$(WINE64_AUTOCONF) \
 			--without-curses \
+			--with-gstreamer \
 			--enable-win64 --disable-tests --prefix=$(abspath $(DST_DIR))
 
 # 32-bit configure
